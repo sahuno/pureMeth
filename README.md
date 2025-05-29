@@ -14,7 +14,7 @@ A Python utilities package for Oxford Nanopore DNA methylation data analysis.
 
 **Option 1: Install from GitHub (Recommended)**
 ```bash
-pip install git+https://github.com/yourusername/pureMeth.git
+pip install git+https://github.com/sahuno/pureMeth.git
 ```
 
 **Option 2: Install from local wheel file**
@@ -26,7 +26,7 @@ pip install pureMeth-0.1.0-py3-none-any.whl
 **Option 3: Install from source**
 ```bash
 # Clone or download the repository
-git clone https://github.com/yourusername/pureMeth.git
+git clone https://github.com/sahuno/pureMeth.git
 cd pureMeth
 pip install -e .
 ```
@@ -34,7 +34,7 @@ pip install -e .
 ### For Developers
 ```bash
 # Development installation
-git clone https://github.com/yourusername/pureMeth.git
+git clone https://github.com/sahuno/pureMeth.git
 cd pureMeth
 pip install -e ".[dev]"
 ```
