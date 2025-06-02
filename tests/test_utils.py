@@ -7,7 +7,14 @@ import tempfile
 import os
 from pathlib import Path
 import yaml
-from pureMeth.utils import generate_samples_yaml, list_sample_files, validate_samples_yaml
+from pureMeth.utils import (
+    generate_samples_yaml, 
+    list_sample_files, 
+    validate_samples_yaml,
+    generate_tumor_normal_yaml,
+    create_patient_bams_from_directory,
+    validate_tumor_normal_yaml
+)
 
 
 class TestGenerateSamplesYaml:
@@ -124,3 +131,137 @@ class TestValidateSamplesYaml:
                 yaml.dump(yaml_content, f)
             
             assert validate_samples_yaml(str(yaml_file)) is False
+
+
+class TestTumorNormalYaml:
+    
+    def test_generate_tumor_normal_yaml_basic(self):
+        """Test basic tumor-normal YAML generation"""
+        patient_bams = {
+            'SHAH_H000033': {
+                'TUMOR': ['/path/to/SHAH_H000033_T16_04_WG01_R1.sorted.bam'],
+                'NORMAL': ['/path/to/SHAH_H000033_N03_01_WG01_R1.sorted.bam']
+            },
+            'SHAH_H000024': {
+                'TUMOR': [
+                    '/path/to/SHAH_H000024_T08_04_WG01_R1.sorted.bam',
+                    '/path/to/SHAH_H000024_T02_04_WG01_R1.sorted.bam'
+                ],
+                'NORMAL': ['/path/to/SHAH_H000024_N03_01_WG01_R1.sorted.bam']
+            }
+        }
+        
+        output_file = generate_tumor_normal_yaml(patient_bams, 'test_tumor_normal')
+        
+        # Verify output file exists
+        assert Path(output_file).exists()
+        
+        # Verify YAML content
+        with open(output_file, 'r') as f:
+            data = yaml.safe_load(f)
+        
+        assert 'SAMPLES' in data
+        assert 'SHAH_H000033' in data['SAMPLES']
+        assert 'SHAH_H000024' in data['SAMPLES']
+        assert 'TUMOR' in data['SAMPLES']['SHAH_H000033']
+        assert 'NORMAL' in data['SAMPLES']['SHAH_H000033']
+        assert len(data['SAMPLES']['SHAH_H000024']['TUMOR']) == 2
+        
+        # Clean up
+        os.unlink(output_file)
+    
+    def test_create_patient_bams_from_directory(self):
+        """Test creating patient_bams structure from directory"""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create test BAM files
+            test_files = [
+                'SHAH_H000033_T16_04_WG01_R1.sorted.bam',
+                'SHAH_H000033_N03_01_WG01_R1.sorted.bam',
+                'SHAH_H000024_T08_04_WG01_R1.sorted.bam',
+                'SHAH_H000024_N03_01_WG01_R1.sorted.bam'
+            ]
+            
+            for file_name in test_files:
+                (Path(temp_dir) / file_name).touch()
+            
+            patient_bams = create_patient_bams_from_directory(temp_dir)
+            
+            assert 'SHAH_H000033' in patient_bams
+            assert 'SHAH_H000024' in patient_bams
+            assert 'TUMOR' in patient_bams['SHAH_H000033']
+            assert 'NORMAL' in patient_bams['SHAH_H000033']
+            assert len(patient_bams['SHAH_H000033']['TUMOR']) == 1
+            assert len(patient_bams['SHAH_H000033']['NORMAL']) == 1
+    
+    def test_validate_tumor_normal_yaml_valid(self):
+        """Test validation of valid tumor-normal YAML"""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create sample BAM files
+            tumor_bam = Path(temp_dir) / 'tumor.sorted.bam'
+            normal_bam = Path(temp_dir) / 'normal.sorted.bam'
+            tumor_bam.touch()
+            normal_bam.touch()
+            
+            # Create valid tumor-normal YAML
+            yaml_content = {
+                'SAMPLES': {
+                    'PATIENT_001': {
+                        'TUMOR': {
+                            'tumor_sample': str(tumor_bam)
+                        },
+                        'NORMAL': {
+                            'normal_sample': str(normal_bam)
+                        }
+                    }
+                }
+            }
+            
+            yaml_file = Path(temp_dir) / 'test_tumor_normal.yaml'
+            with open(yaml_file, 'w') as f:
+                yaml.dump(yaml_content, f)
+            
+            assert validate_tumor_normal_yaml(str(yaml_file)) is True
+    
+    def test_validate_tumor_normal_yaml_invalid_structure(self):
+        """Test validation of invalid tumor-normal YAML structure"""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create invalid YAML (missing 'SAMPLES' key)
+            yaml_content = {'DATA': {'PATIENT_001': {}}}
+            
+            yaml_file = Path(temp_dir) / 'test_invalid.yaml'
+            with open(yaml_file, 'w') as f:
+                yaml.dump(yaml_content, f)
+            
+            assert validate_tumor_normal_yaml(str(yaml_file)) is False
+    
+    def test_generate_tumor_normal_yaml_with_custom_extension(self):
+        """Test tumor-normal YAML generation with custom file extension"""
+        patient_bams = {
+            'PATIENT_001': {
+                'TUMOR': ['/path/to/tumor.bam'],
+                'NORMAL': ['/path/to/normal.bam']
+            }
+        }
+        
+        output_file = generate_tumor_normal_yaml(
+            patient_bams, 
+            'test_custom_ext',
+            file_extension='.bam'
+        )
+        
+        # Verify output file exists
+        assert Path(output_file).exists()
+        
+        # Verify YAML content has correct sample names
+        with open(output_file, 'r') as f:
+            data = yaml.safe_load(f)
+        
+        tumor_samples = data['SAMPLES']['PATIENT_001']['TUMOR']
+        normal_samples = data['SAMPLES']['PATIENT_001']['NORMAL']
+        
+        # Should have .bam extension removed from sample names
+        assert 'tumor' in tumor_samples
+        assert 'normal' in normal_samples
+        
+        # Clean up
+        os.unlink(output_file)

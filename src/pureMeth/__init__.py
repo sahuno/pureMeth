@@ -6,6 +6,16 @@ __version__ = "0.1.0"
 __author__ = "Your Name"
 __email__ = "your.email@example.com"
 
-from .utils import generate_samples_yaml
+from .utils import (
+    generate_samples_yaml,
+    generate_tumor_normal_yaml,
+    create_patient_bams_from_directory,
+    validate_tumor_normal_yaml
+)
 
-__all__ = ["generate_samples_yaml"]
+__all__ = [
+    "generate_samples_yaml",
+    "generate_tumor_normal_yaml", 
+    "create_patient_bams_from_directory",
+    "validate_tumor_normal_yaml"
+]

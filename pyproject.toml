@@ -31,9 +31,12 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0",
+    "pytest-cov",
     "black",
     "flake8",
     "mypy",
+    "build",
+    "twine",
 ]
 
 [project.urls]

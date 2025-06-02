@@ -51,3 +51,11 @@ generate_samples_yaml(
     output_filename="my_samples"
 )
 ```
+
+TODO: 
+methylartist functionilities
+make regions tables for igv view
+make 
+
+lunch snakemake jobs; use default job resources; label as large, small, medium
+
