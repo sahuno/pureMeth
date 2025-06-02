@@ -3,8 +3,8 @@ pureMeth: Python utilities package for Oxford Nanopore DNA methylation data anal
 """
 
 __version__ = "0.1.0"
-__author__ = "Your Name"
-__email__ = "your.email@example.com"
+__author__ = "samuel ahuno"
+__email__ = "ahunos@mskcc.org"
 
 from .utils import (
     generate_samples_yaml,
