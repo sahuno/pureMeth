@@ -169,6 +169,33 @@ class TestTumorNormalYaml:
         
         # Clean up
         os.unlink(output_file)
+
+
+class TestGenerateSamplesYamlFromTsv:
+    def test_generate_samples_yaml_from_tsv_basic(self, tmp_path):
+        """Generate YAML from a two column TSV."""
+        tsv_content = "\n".join([
+            "sample1\t/path/one.fast5",
+            "sample2\t/path/two.fast5",
+        ])
+        tsv_file = tmp_path / "samples.tsv"
+        tsv_file.write_text(tsv_content)
+
+        from pureMeth.utils import generate_samples_yaml_from_tsv
+
+        yaml_file = generate_samples_yaml_from_tsv(str(tsv_file))
+
+        with open(yaml_file, "r") as f:
+            data = yaml.safe_load(f)
+
+        assert data == {
+            "samples": {
+                "sample1": "/path/one.fast5",
+                "sample2": "/path/two.fast5",
+            }
+        }
+
+        os.unlink(yaml_file)
     
     def test_create_patient_bams_from_directory(self):
         """Test creating patient_bams structure from directory"""
@@ -265,3 +292,31 @@ class TestTumorNormalYaml:
         
         # Clean up
         os.unlink(output_file)
+
+
+class TestGenerateSamplesYamlFromTsv:
+    def test_generate_samples_yaml_from_tsv_basic(self, tmp_path):
+        """Generate YAML from a two column TSV."""
+        tsv_content = "\n".join([
+            "sample1\t/path/one.fast5",
+            "sample2\t/path/two.fast5",
+        ])
+        tsv_file = tmp_path / "samples.tsv"
+        tsv_file.write_text(tsv_content)
+
+        from pureMeth.utils import generate_samples_yaml_from_tsv
+
+        yaml_file = generate_samples_yaml_from_tsv(str(tsv_file))
+
+        with open(yaml_file, "r") as f:
+            data = yaml.safe_load(f)
+
+        assert data == {
+            "samples": {
+                "sample1": "/path/one.fast5",
+                "sample2": "/path/two.fast5",
+            }
+        }
+
+        os.unlink(yaml_file)
+
