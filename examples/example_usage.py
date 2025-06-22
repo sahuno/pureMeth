@@ -9,7 +9,9 @@ from pureMeth.utils import (
     validate_samples_yaml,
     generate_tumor_normal_yaml,
     create_patient_bams_from_directory,
-    validate_tumor_normal_yaml
+    validate_tumor_normal_yaml,
+    generate_samples_tsv,
+    create_patient_samples_from_directory
 )
 from pathlib import Path
 
@@ -202,6 +204,91 @@ def example_custom_tumor_normal_patterns():
         print(f"Error: {e}")
 
 
+def example_tsv_generation():
+    """Example of TSV file generation"""
+    print("\n=== TSV File Generation Example ===")
+    
+    data_directory = "/path/to/your/data"
+    
+    try:
+        # Generate TSV file with default tumor/normal patterns
+        tsv_file = generate_samples_tsv(
+            directory=data_directory,
+            file_extension=".bed",
+            output_filename="samples_metadata"
+        )
+        print(f"Generated TSV file: {tsv_file}")
+        
+        # Generate TSV with custom condition patterns
+        custom_patterns = {
+            'Cancer': ['tumor', 'cancer', 'malignant'],
+            'Healthy': ['normal', 'control', 'healthy'],
+            'Treated': ['treated', 'therapy']
+        }
+        
+        tsv_file_custom = generate_samples_tsv(
+            directory=data_directory,
+            file_extension=".bam",
+            output_filename="custom_samples_metadata",
+            condition_patterns=custom_patterns
+        )
+        print(f"Generated custom TSV file: {tsv_file_custom}")
+        
+    except FileNotFoundError:
+        print(f"Directory not found: {data_directory}")
+        print("Please update the data_directory path to point to your actual data")
+    except ValueError as e:
+        print(f"Error: {e}")
+
+
+def example_patient_samples_structure():
+    """Example of creating patient samples structure"""
+    print("\n=== Patient Samples Structure Example ===")
+    
+    data_directory = "/path/to/your/data"
+    
+    try:
+        # Create patient samples structure from directory
+        patient_samples = create_patient_samples_from_directory(
+            directory=data_directory,
+            file_extension=".bed",
+            patient_pattern="PATIENT"
+        )
+        
+        print(f"Found {len(patient_samples)} patients")
+        
+        # Display the structure
+        for patient_id, conditions in patient_samples.items():
+            print(f"\nPatient: {patient_id}")
+            for condition, samples in conditions.items():
+                print(f"  {condition}: {len(samples)} samples")
+                for sample_name, sample_path in samples.items():
+                    print(f"    - {sample_name}: {sample_path}")
+        
+        # Convert to tumor-normal YAML format if needed
+        if patient_samples:
+            # Filter to only tumor/normal and convert to BAM format structure
+            yaml_compatible = {}
+            for patient_id, conditions in patient_samples.items():
+                yaml_compatible[patient_id] = {}
+                for condition in ['TUMOR', 'NORMAL']:
+                    if condition in conditions:
+                        yaml_compatible[patient_id][condition] = list(conditions[condition].values())
+            
+            if yaml_compatible:
+                yaml_file = generate_tumor_normal_yaml(
+                    patient_bams=yaml_compatible,
+                    output_filename="converted_from_tsv_structure"
+                )
+                print(f"\nConverted to YAML format: {yaml_file}")
+        
+    except FileNotFoundError:
+        print(f"Directory not found: {data_directory}")
+        print("Please update the data_directory path to point to your actual data")
+    except Exception as e:
+        print(f"Error: {e}")
+
+
 if __name__ == "__main__":
     print("pureMeth Usage Examples")
     print("=" * 50)
@@ -218,6 +305,10 @@ if __name__ == "__main__":
     example_tumor_normal_yaml()
     example_tumor_normal_from_directory() 
     example_custom_tumor_normal_patterns()
+    
+    # TSV generation examples
+    example_tsv_generation()
+    example_patient_samples_structure()
     
     print("\n" + "=" * 50)
     print("Examples completed!")

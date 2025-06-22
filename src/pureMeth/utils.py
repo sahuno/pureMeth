@@ -307,3 +307,206 @@ def validate_tumor_normal_yaml(yaml_file: str) -> bool:
     except Exception as e:
         print(f"Error validating tumor-normal YAML file: {e}")
         return False
+
+
+def generate_samples_tsv(
+    directory: str,
+    file_extension: str,
+    output_filename: Optional[str] = None,
+    condition_patterns: Optional[Dict[str, List[str]]] = None
+) -> str:
+    """
+    Generate TSV file with sample metadata from directory structure
+    
+    Args:
+        directory (str): Directory to search for files
+        file_extension (str): File extension to search for (e.g., '.bed', '.bam')
+        output_filename (str, optional): Custom output filename (without extension)
+                                       If None, uses format 'samples_[datetime].tsv'
+        condition_patterns (Dict[str, List[str]], optional): Dictionary mapping condition names to patterns
+                                                           Default: {'Tumor': ['tumor'], 'Normal': ['normal']}
+    
+    Returns:
+        str: Path to generated TSV file
+        
+    Raises:
+        FileNotFoundError: If directory doesn't exist
+        ValueError: If no files with specified extension found
+    """
+    import csv
+    
+    # Validate directory exists
+    directory_path = Path(directory)
+    if not directory_path.exists():
+        raise FileNotFoundError(f"Directory not found: {directory}")
+    
+    if not directory_path.is_dir():
+        raise ValueError(f"Path is not a directory: {directory}")
+    
+    # Ensure file extension starts with dot
+    if not file_extension.startswith('.'):
+        file_extension = '.' + file_extension
+    
+    # Set default condition patterns if not provided
+    if condition_patterns is None:
+        condition_patterns = {
+            'Tumor': ['tumor'],
+            'Normal': ['normal']
+        }
+    
+    header = ["patient", "sample", "condition", "path"]
+    rows = []
+    
+    # Find all files with specified extension
+    for file_path in directory_path.rglob(f'*{file_extension}'):
+        if file_path.is_file():
+            full_path = str(file_path.absolute())
+            path_parts = full_path.split(os.sep)
+            
+            patient = "Unknown"
+            sample = "Unknown"
+            condition_val = "Unknown"
+            
+            # Try to find condition in path
+            condition_index = -1
+            for i, part in enumerate(path_parts):
+                part_lower = part.lower()
+                for condition, patterns in condition_patterns.items():
+                    if any(pattern.lower() in part_lower for pattern in patterns):
+                        condition_val = condition
+                        condition_index = i
+                        break
+                if condition_index != -1:
+                    break
+            
+            if condition_index != -1:  # Condition was found
+                # Patient extraction - look for directory before condition
+                if condition_index - 1 >= 0:
+                    patient = path_parts[condition_index - 1]
+                
+                # Sample extraction - look for directory after condition
+                if condition_index + 1 < len(path_parts) - 1:  # -1 to exclude filename
+                    sample = path_parts[condition_index + 1]
+            
+            else:  # Condition not found, use fallback logic
+                # Get path relative to search directory
+                relative_path = os.path.relpath(full_path, os.path.normpath(str(directory)))
+                relative_path_parts = relative_path.split(os.sep)
+                
+                if len(relative_path_parts) >= 2:  # At least patient_dir/file.ext
+                    patient = relative_path_parts[0]
+                    
+                    if len(relative_path_parts) >= 3:  # patient_dir/.../sample_dir/file.ext
+                        # Sample is the directory containing the file
+                        sample = relative_path_parts[-2]
+            
+            rows.append({
+                "patient": patient,
+                "sample": sample,
+                "condition": condition_val,
+                "path": full_path
+            })
+    
+    if not rows:
+        raise ValueError(f"No files with extension '{file_extension}' found in {directory}")
+    
+    # Generate output filename with timestamp if not provided
+    if output_filename is None:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_filename = f"samples_{timestamp}"
+    
+    # Ensure .tsv extension
+    if not output_filename.endswith('.tsv'):
+        output_filename += '.tsv'
+    
+    # Write TSV file to current working directory
+    output_path = Path.cwd() / output_filename
+    
+    with open(output_path, 'w', newline='') as tsvfile:
+        writer = csv.DictWriter(tsvfile, fieldnames=header, delimiter='\t')
+        writer.writeheader()
+        writer.writerows(rows)
+    
+    print(f"Generated TSV file: {output_path}")
+    print(f"Found {len(rows)} samples with extension '{file_extension}'")
+    
+    return str(output_path)
+
+
+def create_patient_samples_from_directory(
+    directory: str,
+    file_extension: str,
+    patient_pattern: Optional[str] = None,
+    condition_patterns: Optional[Dict[str, List[str]]] = None
+) -> Dict[str, Dict[str, Dict[str, str]]]:
+    """
+    Create patient samples dictionary from directory structure
+    
+    Args:
+        directory (str): Directory containing sample files
+        file_extension (str): File extension to search for
+        patient_pattern (str, optional): Pattern to identify patient ID in path
+        condition_patterns (Dict[str, List[str]], optional): Dictionary mapping condition names to patterns
+        
+    Returns:
+        Dict: Nested dictionary structure {patient: {condition: {sample: path}}}
+    """
+    directory_path = Path(directory)
+    if not directory_path.exists():
+        raise FileNotFoundError(f"Directory not found: {directory}")
+    
+    # Ensure file extension starts with dot
+    if not file_extension.startswith('.'):
+        file_extension = '.' + file_extension
+    
+    # Set default condition patterns if not provided
+    if condition_patterns is None:
+        condition_patterns = {
+            'TUMOR': ['tumor'],
+            'NORMAL': ['normal']
+        }
+    
+    patient_samples = defaultdict(lambda: defaultdict(dict))
+    
+    # Find all files with specified extension
+    for file_path in directory_path.rglob(f'*{file_extension}'):
+        if file_path.is_file():
+            full_path = str(file_path.absolute())
+            path_parts = full_path.split(os.sep)
+            
+            patient = None
+            condition = None
+            sample = file_path.stem  # Default sample name is filename without extension
+            
+            # Try to find condition in path
+            for i, part in enumerate(path_parts):
+                part_lower = part.lower()
+                for cond_name, patterns in condition_patterns.items():
+                    if any(pattern.lower() in part_lower for pattern in patterns):
+                        condition = cond_name
+                        
+                        # Extract patient ID (directory before condition)
+                        if i - 1 >= 0:
+                            patient = path_parts[i - 1]
+                        
+                        # Extract sample name (directory after condition, if exists)
+                        if i + 1 < len(path_parts) - 1:
+                            sample = path_parts[i + 1]
+                        
+                        break
+                
+                if condition:
+                    break
+            
+            # If patient pattern provided and patient not found, try pattern matching
+            if patient_pattern and not patient:
+                for part in path_parts:
+                    if patient_pattern in part:
+                        patient = part
+                        break
+            
+            # Only add if we found both patient and condition
+            if patient and condition:
+                patient_samples[patient][condition][sample] = full_path
+    
+    return dict(patient_samples)
