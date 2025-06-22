@@ -3,6 +3,7 @@ Utility functions for pureMeth package
 """
 
 import os
+import csv
 import yaml
 from pathlib import Path
 from datetime import datetime
@@ -333,7 +334,6 @@ def generate_samples_tsv(
         FileNotFoundError: If directory doesn't exist
         ValueError: If no files with specified extension found
     """
-    import csv
     
     # Validate directory exists
     directory_path = Path(directory)
